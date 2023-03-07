@@ -8,6 +8,7 @@ public class Grammar {
     private char[] nonTerminalVariables;
     private char[] terminalVariables;
     private String word = "";
+    private boolean type1 = true, type2 = true, type3 = true, left = false, right = false;
     HashMap<String, String> productionRules = new HashMap<String, String>();
 
     public Grammar(char[] nonTerminalVariables, char[] terminalVariables, HashMap<String, String> productionRules) {
@@ -85,6 +86,59 @@ public class Grammar {
                 possibleStates[3], transitions);
 
         return finiteAutomaton1;
+    }
+
+    public int countChar(String str, char c) {
+        int count = 0;
+
+        for (int i = 0; i < str.length(); i++) {
+            if (str.charAt(i) == c)
+                count++;
+        }
+        return count;
+    }
+
+    public String classifyGrammar() {
+        productionRules.forEach((key, value) -> {
+            int sum = 0;
+            String[] part = key.split("(?<=\\D)(?=\\d)");
+            String ntv = String.valueOf(nonTerminalVariables);
+            if (part[0].length() > 1) {
+                type2 = false;
+                type3 = false;
+            }
+
+            if (value.contains("ε"))
+                type1 = false;
+
+            if (ntv.indexOf(value.charAt(0)) > -1)
+                left = true;
+            else
+                right = true;
+
+            for (int i = 0; i < ntv.length(); i++) {
+                sum += countChar(value, ntv.charAt(i));
+                int j = value.indexOf(ntv.charAt(i));
+                if (j > 0 && value.length() > (j + 1)) {
+                    type3 = false;
+                }
+            }
+            if (sum > 1)
+                type3 = false;
+
+        });
+        if (left == right)
+            type3 = false;
+
+        if (type3 == true)
+            return "type 3";
+        if (type2 == true)
+            return "type 2";
+        if (type1 == true)
+            return "type 1";
+
+        return "type 0";
+
     }
 
 }

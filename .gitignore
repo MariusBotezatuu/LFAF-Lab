@@ -1,2 +1,5 @@
 # Ignore any files in /bin folder
 **/bin/*
+**/lib/*
+/finite_automata
+/finite_automata.pdf
