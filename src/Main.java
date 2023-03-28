@@ -1,13 +1,16 @@
-import java.util.HashMap;
 import automaton.FiniteAutomaton;
 import grammar.Grammar;
 import automaton.Transition;
+import lexer.*;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -171,6 +174,19 @@ public class Main {
         // String automata = automaton2.getTransitionsAsString();
         // String DFAautomata = DFAautomaton.getTransitionsAsString();
         // sendToPython(DFAautomata);
+
+        // things for third lab
+
+        System.out.println("\nLab 3 Results");
+
+        String input = new String(Files.readAllBytes(Paths.get("src/lexer/input.txt")));
+
+        Lexer lexer = new Lexer();
+        ArrayList<Token> tokens = lexer.lex(input);
+        for (Token t : tokens) {
+            System.out.println(t.toString());
+        }
+
     }
 
     public static void sendToPython(String automata) throws IOException {
