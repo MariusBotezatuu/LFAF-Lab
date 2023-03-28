@@ -36,8 +36,8 @@ enum TokenType {
 }
 ```
 
-### 2. Creating the token class
-* I created a class called "Token" that has 2 variables: one of type TokenType, which holds the token type and another of type string, which holds the lexeme. The lexeme is the actual text of the token, the sequence of characters that matches the pattern for the token type. This class also has a method called "toString" that takes in the variables of the class and returns a string of the format "Token(token type, lexeme)".
+### 2. Creating the token class.
+* I created a class called "Token" that has 2 variables: one of type TokenType, which holds the token type and another of type string, which holds the lexeme. The lexeme is the actual text of the token, the sequence of characters that matches the pattern for the token type [1]. This class also has a method called "toString" that takes in the variables of the class and returns a string of the format "Token(token type, lexeme)".
 ```
 public class Token {
     public final TokenType t;
