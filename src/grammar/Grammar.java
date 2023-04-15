@@ -1,6 +1,9 @@
 package grammar;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+
 import automaton.FiniteAutomaton;
 import automaton.Transition;
 
@@ -138,6 +141,127 @@ public class Grammar {
             return "type 1";
 
         return "type 0";
+
+    }
+
+    // to do : something like AABA won't work
+    public void toChomskyNormalForm() {
+        HashMap<String, String> newProductionRules = new HashMap<String, String>();
+        HashMap<String, Integer> nonTerminalOccurences = new HashMap<String, Integer>();
+        newProductionRules.putAll(productionRules);
+        productionRules.forEach((key, value) -> {
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+            int number = Integer.parseInt(key.replaceAll("[^0-9]", ""));
+            if (value == "Ɛ") {
+                if (nonTerminalOccurences.containsKey(letter))
+                    nonTerminalOccurences.remove(letter);
+                nonTerminalOccurences.put(letter + "1", number - 1);
+                newProductionRules.remove(key);
+            } else {
+                nonTerminalOccurences.put(letter, number);
+            }
+        });
+
+        newProductionRules.putAll(eliminateEpilsonProductions(newProductionRules, nonTerminalOccurences));
+
+    }
+
+    private HashMap<String, String> eliminateEpilsonProductions(HashMap<String, String> newProductionRules,
+            HashMap<String, Integer> nonTerminalOccurences) {
+        HashMap<String, String> productionRulesCopy = new HashMap<String, String>();
+        productionRulesCopy.putAll(productionRules);
+
+        productionRulesCopy.forEach((key, value) -> {
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+            int number = Integer.parseInt(key.replaceAll("[^0-9]", ""));
+            for (int k = 0; k < value.length(); k++) {
+                char c = value.charAt(k);
+                if (nonTerminalOccurences.containsKey(c + "1")) {
+                    StringBuilder count = new StringBuilder();
+                    int count2 = 0;
+                    for (int j = 0; j < value.length(); j++) {
+                        if (value.charAt(j) == c) {
+                            count2++;
+                            count.append(Integer.toString(count2));
+                        }
+                    }
+
+                    HashSet<String> set = new HashSet<>();
+                    getPartialPermutations(count.toString(), set);
+                    if (count.toString().length() > 1)
+                        set.remove(count.toString());
+                    String[] array = set.toArray(new String[set.size()]);
+
+                    for (int i = 0; i < array.length - 2; i++) {
+                        for (int j = i + 1; j < array.length; j++) {
+                            if (!array[i].contains(array[j]) && !array[j].contains(array[i])) {
+                                String newPermutation = array[i] + array[j];
+                                char[] charArray = newPermutation.toCharArray();
+                                Arrays.sort(charArray);
+                                String sortedNewPermutation = new String(charArray);
+                                set.add(sortedNewPermutation);
+                            }
+                        }
+                    }
+
+                    if (count.toString().length() > 1)
+                        set.remove(count.toString());
+                    set.add("0");
+
+                    for (String element : set) {
+                        count.setLength(0);
+                        count2 = 0;
+                        for (int j = 0; j < value.length(); j++) {
+                            if (value.charAt(j) != c)
+                                count.append(value.charAt(j));
+                            else {
+                                count2++;
+                                if (element.contains(Integer.toString(count2))) {
+                                    count.append(value.charAt(j));
+                                }
+                            }
+                        }
+                        // add count to new production rules
+                        String letter2 = letter + "1";
+                        final Boolean[] prodExists = { false };
+                        // check if production rule already exists
+
+                        newProductionRules.forEach((key3, value3) -> {
+                            String letter3 = key3.replaceAll("[^a-zA-Z]", "");
+                            int number3 = Integer.parseInt(key3.replaceAll("[^0-9]", ""));
+                            if (letter3.equals(letter) && value3.equals(count.toString()))
+                                prodExists[0] = true;
+                        });
+                        if (prodExists[0] != true) {
+                            newProductionRules.put(
+                                    letter + Integer.toString(
+                                            nonTerminalOccurences.get(letter.charAt(0) == c ? letter2 : letter) + 1),
+                                    count.toString());
+                            nonTerminalOccurences.put(letter.charAt(0) == c ? letter2 : letter,
+                                    nonTerminalOccurences.get(letter.charAt(0) == c ? letter2 : letter) + 1);
+                        }
+                    }
+
+                    break;
+                }
+            }
+        });
+
+        System.out.println("Production rules after removal of ε productions:");
+        newProductionRules.forEach((key, value) -> {
+            System.out.println(key + "->" + value);
+        });
+
+        return newProductionRules;
+
+    }
+
+    private void getPartialPermutations(String sequence, HashSet<String> set) {
+        set.add(sequence);
+        if (sequence.length() > 1) {
+            getPartialPermutations(sequence.substring(0, sequence.length() / 2), set);
+            getPartialPermutations(sequence.substring(sequence.length() / 2), set);
+        }
 
     }
 

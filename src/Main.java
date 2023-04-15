@@ -187,6 +187,29 @@ public class Main {
             System.out.println(t.toString());
         }
 
+        // things for lab 4
+
+        System.out.println("\nLab 4 Results");
+
+        HashMap<String, String> productionRules2 = new HashMap<String, String>();
+        productionRules2.put("S1", "aB");
+        productionRules2.put("S2", "bA");
+        productionRules2.put("A1", "B");
+        productionRules2.put("A2", "b");
+        productionRules2.put("A3", "aD");
+        productionRules2.put("A4", "AS");
+        productionRules2.put("A5", "bAAB");
+        productionRules2.put("A6", "Ɛ");
+        productionRules2.put("B1", "b");
+        productionRules2.put("B2", "bS");
+        productionRules2.put("C1", "AB");
+        productionRules2.put("D1", "BB");
+
+        char[] nonTerminalVariables2 = { 'S', 'A', 'B', 'C', 'D' };
+        char[] terminalVariables2 = { 'a', 'b' };
+        Grammar grammar3 = new Grammar(nonTerminalVariables2, terminalVariables2, productionRules2);
+        grammar3.toChomskyNormalForm();
+
     }
 
     public static void sendToPython(String automata) throws IOException {
