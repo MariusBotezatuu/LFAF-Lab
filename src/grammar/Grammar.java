@@ -3,6 +3,7 @@ package grammar;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 
 import automaton.FiniteAutomaton;
 import automaton.Transition;
@@ -163,7 +164,132 @@ public class Grammar {
         });
 
         newProductionRules.putAll(eliminateEpilsonProductions(newProductionRules, nonTerminalOccurences));
+        newProductionRules.putAll(eliminateUnitProductions(newProductionRules, nonTerminalOccurences));
+        newProductionRules.putAll(eliminateNonProductiveSymbols(newProductionRules, nonTerminalOccurences));
 
+    }
+
+    private HashMap<String, String> eliminateNonProductiveSymbols(HashMap<String, String> newProductionRules,
+            HashMap<String, Integer> nonTerminalOccurences) {
+        boolean[] hasTerminalVariable = new boolean[nonTerminalVariables.length];
+        HashSet<String> productiveSymbols = new HashSet<>();
+        HashSet<Character> terminalSet = new HashSet<Character>();
+        for (int i = 0; i < terminalVariables.length; i++)
+            terminalSet.add(terminalVariables[i]);
+
+        newProductionRules.forEach((key, value) -> {
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+            if (value.length() == 1) {
+                for (int i = 0; i < terminalVariables.length; i++) {
+                    if (terminalVariables[i] == value.charAt(0)) {
+                        for (int j = 0; j < nonTerminalVariables.length; j++) {
+                            if (nonTerminalVariables[j] == letter.charAt(0)) {
+                                hasTerminalVariable[j] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        newProductionRules.forEach((key, value) -> {
+            Boolean isProductive = true;
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+
+            for (int i = 0; i < value.length(); i++) {
+                if (!terminalSet.contains(value.charAt(i))) {
+                    for (int j = 0; j < nonTerminalVariables.length; j++) {
+                        if (nonTerminalVariables[j] == value.charAt(i) && hasTerminalVariable[j] != true) {
+                            isProductive = false;
+                        }
+                    }
+                }
+            }
+            if (isProductive)
+                productiveSymbols.add(letter);
+        });
+
+        HashMap<String, String> newProductionRulesWithoutNonProductive = new HashMap<String, String>();
+        newProductionRulesWithoutNonProductive.putAll(newProductionRules);
+        newProductionRules.forEach((key, value) -> {
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+            if (!productiveSymbols.contains(letter))
+                newProductionRulesWithoutNonProductive.remove(key);
+            for (int i = 0; i < value.length(); i++) {
+                if (!terminalSet.contains(value.charAt(i))
+                        && !productiveSymbols.contains(Character.toString(value.charAt(i))))
+                    newProductionRulesWithoutNonProductive.remove(key);
+            }
+        });
+
+        newProductionRules.clear();
+        newProductionRules.putAll(newProductionRulesWithoutNonProductive);
+
+        System.out.println("Production rules after removal of non-productive symbols:");
+        newProductionRules.forEach((key, value) -> {
+            System.out.println(key + "->" + value);
+        });
+
+        return newProductionRules;
+    }
+
+    private HashMap<String, String> eliminateUnitProductions(HashMap<String, String> newProductionRules,
+            HashMap<String, Integer> nonTerminalOccurences) {
+        HashMap<String, String> newProductionRulesWithoutUnit = new HashMap<String, String>();
+        newProductionRulesWithoutUnit.putAll(newProductionRules);
+
+        for (int i = 0; i < nonTerminalVariables.length; i++) {
+            newProductionRules.forEach((key, value) -> {
+                String letter = key.replaceAll("[^a-zA-Z]", "");
+                int number = Integer.parseInt(key.replaceAll("[^0-9]", ""));
+                if (value.length() == 1 && Character.isUpperCase(value.charAt(0))) {
+                    // newProductionRulesWithoutUnit.remove(key);
+                    newProductionRules.forEach((key1, value1) -> {
+                        String letter1 = key1.replaceAll("[^a-zA-Z]", "");
+                        int number1 = Integer.parseInt(key1.replaceAll("[^0-9]", ""));
+                        if (letter1.equals(value)) {
+                            final Boolean[] prodExists = { false };
+                            newProductionRulesWithoutUnit.forEach((key2, value2) -> {
+                                String letter2 = key2.replaceAll("[^a-zA-Z]", "");
+                                int number2 = Integer.parseInt(key2.replaceAll("[^0-9]", ""));
+                                if (letter2.equals(letter) && value2.equals(value1)) {
+                                    prodExists[0] = true;
+                                }
+                            });
+                            if (prodExists[0] == false) {
+                                if (newProductionRulesWithoutUnit.get(key).length() == 1
+                                        && Character.isUpperCase(newProductionRulesWithoutUnit.get(key).charAt(0))) {
+                                    newProductionRulesWithoutUnit.put(key, value1);
+                                } else {
+                                    int count = nonTerminalOccurences.get(letter);
+                                    count++;
+                                    newProductionRulesWithoutUnit.put(letter + Integer.toString(count), value1);
+                                    nonTerminalOccurences.put(letter, count);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+            newProductionRules.clear();
+            newProductionRules.putAll(newProductionRulesWithoutUnit);
+        }
+
+        newProductionRulesWithoutUnit.forEach((key, value) -> {
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+            int number = Integer.parseInt(key.replaceAll("[^0-9]", ""));
+            if (value.length() == 1 && Character.isUpperCase(value.charAt(0))) {
+                newProductionRules.remove(key);
+                nonTerminalOccurences.put(letter, nonTerminalOccurences.get(letter) - 1);
+            }
+        });
+
+        System.out.println("Production rules after removal of unit productions:");
+        newProductionRules.forEach((key, value) -> {
+            System.out.println(key + "->" + value);
+        });
+
+        return newProductionRules;
     }
 
     private HashMap<String, String> eliminateEpilsonProductions(HashMap<String, String> newProductionRules,
@@ -232,7 +358,7 @@ public class Grammar {
                             if (letter3.equals(letter) && value3.equals(count.toString()))
                                 prodExists[0] = true;
                         });
-                        if (prodExists[0] != true) {
+                        if (prodExists[0] != true && !count.toString().isEmpty()) {
                             newProductionRules.put(
                                     letter + Integer.toString(
                                             nonTerminalOccurences.get(letter.charAt(0) == c ? letter2 : letter) + 1),
@@ -241,11 +367,23 @@ public class Grammar {
                                     nonTerminalOccurences.get(letter.charAt(0) == c ? letter2 : letter) + 1);
                         }
                     }
-
                     break;
                 }
             }
         });
+
+        HashMap<String, Integer> newNonTerminalOccurences = new HashMap<String, Integer>();
+        newNonTerminalOccurences.putAll(nonTerminalOccurences);
+        nonTerminalOccurences.forEach((key, value) -> {
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+            if (key.length() > 1) {
+                newNonTerminalOccurences.remove(key);
+                newNonTerminalOccurences.put(letter, value);
+            }
+        });
+
+        nonTerminalOccurences.clear();
+        nonTerminalOccurences.putAll(newNonTerminalOccurences);
 
         System.out.println("Production rules after removal of ε productions:");
         newProductionRules.forEach((key, value) -> {
@@ -262,7 +400,5 @@ public class Grammar {
             getPartialPermutations(sequence.substring(0, sequence.length() / 2), set);
             getPartialPermutations(sequence.substring(sequence.length() / 2), set);
         }
-
     }
-
 }

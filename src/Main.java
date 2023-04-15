@@ -192,9 +192,10 @@ public class Main {
         System.out.println("\nLab 4 Results");
 
         HashMap<String, String> productionRules2 = new HashMap<String, String>();
+
         productionRules2.put("S1", "aB");
-        productionRules2.put("S2", "bA");
         productionRules2.put("A1", "B");
+        productionRules2.put("S2", "bA");
         productionRules2.put("A2", "b");
         productionRules2.put("A3", "aD");
         productionRules2.put("A4", "AS");
@@ -204,6 +205,10 @@ public class Main {
         productionRules2.put("B2", "bS");
         productionRules2.put("C1", "AB");
         productionRules2.put("D1", "BB");
+
+        // productionRules2.put("A1", "B");
+        // productionRules2.put("B1", "C");
+        // productionRules2.put("C1", "Ɛ");
 
         char[] nonTerminalVariables2 = { 'S', 'A', 'B', 'C', 'D' };
         char[] terminalVariables2 = { 'a', 'b' };
