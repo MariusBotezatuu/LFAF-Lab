@@ -4,6 +4,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 
 import automaton.FiniteAutomaton;
 import automaton.Transition;
@@ -145,10 +147,41 @@ public class Grammar {
 
     }
 
-    // to do : something like AABA won't work
+    private void reorderProductionRules(HashMap<String, String> productionRulesToOrder) {
+        int[] nonTerminalCount = new int[nonTerminalVariables.length];
+        HashMap<String, String> productionRulesCopy = new HashMap<String, String>();
+        HashMap<Character, Integer> nonTerminalPositions = new HashMap<Character, Integer>();
+        for (int i = 0; i < nonTerminalVariables.length; i++) {
+            nonTerminalPositions.put(nonTerminalVariables[i], i);
+        }
+
+        productionRulesCopy.putAll(productionRulesToOrder);
+        productionRulesToOrder.forEach((key, value) -> {
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+            int number = Integer.parseInt(key.replaceAll("[^0-9]", ""));
+            number += 200000000;
+            productionRulesCopy.remove(key);
+            productionRulesCopy.put(letter + number, value);
+        });
+
+        productionRulesToOrder.clear();
+        productionRulesToOrder.putAll(productionRulesCopy);
+
+        productionRulesToOrder.forEach((key, value) -> {
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+            productionRulesCopy.remove(key);
+            nonTerminalCount[nonTerminalPositions.get(letter.charAt(0))]++;
+            productionRulesCopy.put(letter + nonTerminalCount[nonTerminalPositions.get(letter.charAt(0))], value);
+        });
+
+        productionRulesToOrder.clear();
+        productionRulesToOrder.putAll(productionRulesCopy);
+    }
+
     public void toChomskyNormalForm() {
         HashMap<String, String> newProductionRules = new HashMap<String, String>();
         HashMap<String, Integer> nonTerminalOccurences = new HashMap<String, Integer>();
+        HashMap<String, String> newProductionRulesCopy = new HashMap<String, String>();
         newProductionRules.putAll(productionRules);
         productionRules.forEach((key, value) -> {
             String letter = key.replaceAll("[^a-zA-Z]", "");
@@ -163,10 +196,222 @@ public class Grammar {
             }
         });
 
-        newProductionRules.putAll(eliminateEpilsonProductions(newProductionRules, nonTerminalOccurences));
-        newProductionRules.putAll(eliminateUnitProductions(newProductionRules, nonTerminalOccurences));
-        newProductionRules.putAll(eliminateNonProductiveSymbols(newProductionRules, nonTerminalOccurences));
+        newProductionRulesCopy.putAll(eliminateEpilsonProductions(newProductionRules, nonTerminalOccurences));
+        newProductionRules.clear();
+        newProductionRules.putAll(newProductionRulesCopy);
+        newProductionRulesCopy.clear();
 
+        newProductionRulesCopy.putAll(eliminateUnitProductions(newProductionRules, nonTerminalOccurences));
+        newProductionRules.clear();
+        newProductionRules.putAll(newProductionRulesCopy);
+        newProductionRulesCopy.clear();
+
+        newProductionRulesCopy.putAll(eliminateNonProductiveSymbols(newProductionRules, nonTerminalOccurences));
+        newProductionRules.clear();
+        newProductionRules.putAll(newProductionRulesCopy);
+        newProductionRulesCopy.clear();
+
+        newProductionRulesCopy.putAll(eliminateInaccessibleSymbols(newProductionRules, nonTerminalOccurences));
+        newProductionRules.clear();
+        newProductionRules.putAll(newProductionRulesCopy);
+        newProductionRulesCopy.clear();
+
+        obtainChomskyNormalForm(newProductionRules);
+
+    }
+
+    private void obtainChomskyNormalForm(HashMap<String, String> newProductionRules) {
+        int[] xValue = new int[1];
+        int[] yValue = new int[1];
+        HashMap<String, String> newNonTerminals = new HashMap<String, String>();
+        HashSet<Character> terminalSet = new HashSet<Character>();
+        HashMap<String, String> newProductionRulesCopy = new HashMap<String, String>();
+        for (int i = 0; i < terminalVariables.length; i++)
+            terminalSet.add(terminalVariables[i]);
+        xValue[0] = 1;
+        yValue[0] = 1;
+        newProductionRulesCopy.putAll(newProductionRules);
+
+        newProductionRules.forEach((key, value) -> {
+            String newValue = value.replaceAll("\\.\\d+", "");
+            String key2;
+            int terminalPosition = 0;
+
+            while ((newValue.length() != 1) && (newValue.length() > 2 || (terminalSet.contains(newValue.charAt(0))
+                    || terminalSet.contains(newValue.charAt(1))))) {
+
+                if (terminalSet.contains(newValue.charAt(0))) {
+                    if (newNonTerminals.containsValue(Character.toString(newValue.charAt(0)))) {
+                        for (Map.Entry<String, String> entry : newNonTerminals.entrySet()) {
+                            if (entry.getValue().equals(Character.toString(newValue.charAt(0)))) {
+                                key2 = entry.getKey();
+                                value = key2 + value.substring(1);
+                                break;
+                            }
+                        }
+                    } else {
+                        newNonTerminals.put("Y." + yValue[0], Character.toString(newValue.charAt(0)));
+                        value = "Y." + yValue[0] + value.substring(1);
+                        yValue[0]++;
+                    }
+                }
+
+                int dotIndex = value.indexOf(".");
+                if (dotIndex != -1) {
+                    for (int i = dotIndex + 1; i < value.length(); i++) {
+                        char c = value.charAt(i);
+                        if (Character.isDigit(c)) {
+                            terminalPosition = i;
+                            break;
+                        }
+                    }
+                } else
+                    terminalPosition = 0;
+
+                terminalPosition++;
+                if (terminalSet.contains(value.charAt(terminalPosition))) {
+                    if (newNonTerminals.containsValue(Character.toString(value.charAt(terminalPosition)))) {
+                        for (Map.Entry<String, String> entry : newNonTerminals.entrySet()) {
+                            if (entry.getValue().equals(Character.toString(value.charAt(terminalPosition)))) {
+                                key2 = entry.getKey();
+                                value = value.substring(0, terminalPosition) + key2
+                                        + value.substring(terminalPosition + 1);
+                                break;
+                            }
+                        }
+                    } else {
+                        newNonTerminals.put("Y." + yValue[0], Character.toString(value.charAt(terminalPosition)));
+                        value = value.substring(0, terminalPosition) + "Y." + yValue[0]
+                                + value.substring(terminalPosition + 1);
+                        yValue[0]++;
+                    }
+                }
+
+                newValue = value.replaceAll("\\.\\d+", "");
+
+                if (Character.isUpperCase(newValue.charAt(0)) && Character.isUpperCase(newValue.charAt(1))
+                        && newValue.length() > 2) {
+                    Boolean reachedFirstString = false;
+                    Boolean reachedSecondString = false;
+                    int end = 0;
+                    String firstString = "";
+                    String secondString = "";
+                    for (int i = 0; i < value.length(); i++) {
+                        end = i;
+                        if (value.charAt(i) >= 'A' && value.charAt(i) <= 'Z') {
+                            if (!reachedFirstString) {
+                                reachedFirstString = true;
+                                firstString = Character.toString(value.charAt(i));
+                            } else {
+                                if (!reachedSecondString) {
+                                    reachedSecondString = true;
+                                    secondString = Character.toString(value.charAt(i));
+                                } else {
+                                    end--;
+                                    break;
+                                }
+                            }
+                        } else {
+                            if (!reachedSecondString) {
+                                firstString = firstString + Character.toString(value.charAt(i));
+                            } else
+                                secondString = secondString + Character.toString(value.charAt(i));
+                        }
+                    }
+
+                    if (newNonTerminals.containsValue(firstString + secondString)) {
+                        for (Map.Entry<String, String> entry : newNonTerminals.entrySet()) {
+                            if (entry.getValue().equals(firstString + secondString)) {
+                                key2 = entry.getKey();
+                                if (end + 1 >= value.length())
+                                    value = key2;
+                                else
+                                    value = key2 + value.substring(end + 1);
+                                break;
+                            }
+                        }
+                    } else {
+                        newNonTerminals.put("X." + xValue[0], firstString + secondString);
+                        if (end + 1 >= value.length())
+                            value = "X." + xValue[0];
+                        else
+                            value = "X." + xValue[0] + value.substring(end + 1);
+                        xValue[0]++;
+                    }
+
+                }
+
+                newProductionRulesCopy.put(key, value);
+                newValue = value.replaceAll("\\.\\d+", "");
+            }
+        });
+        newProductionRulesCopy.putAll(newNonTerminals);
+        newProductionRules.clear();
+        newProductionRules.putAll(newProductionRulesCopy);
+
+        System.out.println("Chomsky Normal Form:");
+        newProductionRules.forEach((key, value) -> {
+            System.out.println(key + "->" + value);
+        });
+
+    }
+
+    private HashMap<String, String> eliminateInaccessibleSymbols(HashMap<String, String> newProductionRules,
+            HashMap<String, Integer> nonTerminalOccurences) {
+        HashSet<Character> terminalSet = new HashSet<Character>();
+        HashSet<Character> inaccessibleSymbols = new HashSet<Character>();
+        HashSet<Character> accesibleSymbols = new HashSet<Character>();
+        HashSet<Character> accesibleSymbolsCopy = new HashSet<Character>();
+        accesibleSymbols.add('S');
+        accesibleSymbolsCopy.addAll(accesibleSymbols);
+        for (int i = 0; i < terminalVariables.length; i++)
+            terminalSet.add(terminalVariables[i]);
+        for (int i = 0; i < nonTerminalVariables.length; i++)
+            inaccessibleSymbols.add(nonTerminalVariables[i]);
+
+        for (int i = 0; i < nonTerminalVariables.length; i++) {
+            accesibleSymbols.clear();
+            accesibleSymbols.addAll(accesibleSymbolsCopy);
+            for (Character element : accesibleSymbols) {
+                newProductionRules.forEach((key, value) -> {
+                    String letter = key.replaceAll("[^a-zA-Z]", "");
+                    if (letter.charAt(0) == element) {
+                        for (int j = 0; j < value.length(); j++) {
+                            if (!terminalSet.contains(value.charAt(j))) {
+                                accesibleSymbolsCopy.add(value.charAt(j));
+                                inaccessibleSymbols.remove(value.charAt(j));
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        HashMap<String, String> newProductionRulesCopy = new HashMap<String, String>();
+        newProductionRulesCopy.putAll(newProductionRules);
+        newProductionRules.forEach((key, value) -> {
+            String letter = key.replaceAll("[^a-zA-Z]", "");
+            if (inaccessibleSymbols.contains(letter.charAt(0)))
+                newProductionRulesCopy.remove(key);
+            else {
+                for (int i = 0; i < value.length(); i++) {
+                    if (inaccessibleSymbols.contains(value.charAt(i))) {
+                        newProductionRulesCopy.remove(key);
+                        break;
+                    }
+                }
+            }
+        });
+        newProductionRules.clear();
+        newProductionRules.putAll(newProductionRulesCopy);
+        reorderProductionRules(newProductionRules);
+
+        System.out.println("Production rules after removal of inaccessible symbols:");
+        newProductionRules.forEach((key, value) -> {
+            System.out.println(key + "->" + value);
+        });
+
+        return newProductionRules;
     }
 
     private HashMap<String, String> eliminateNonProductiveSymbols(HashMap<String, String> newProductionRules,
@@ -224,6 +469,7 @@ public class Grammar {
 
         newProductionRules.clear();
         newProductionRules.putAll(newProductionRulesWithoutNonProductive);
+        reorderProductionRules(newProductionRules);
 
         System.out.println("Production rules after removal of non-productive symbols:");
         newProductionRules.forEach((key, value) -> {
@@ -243,7 +489,6 @@ public class Grammar {
                 String letter = key.replaceAll("[^a-zA-Z]", "");
                 int number = Integer.parseInt(key.replaceAll("[^0-9]", ""));
                 if (value.length() == 1 && Character.isUpperCase(value.charAt(0))) {
-                    // newProductionRulesWithoutUnit.remove(key);
                     newProductionRules.forEach((key1, value1) -> {
                         String letter1 = key1.replaceAll("[^a-zA-Z]", "");
                         int number1 = Integer.parseInt(key1.replaceAll("[^0-9]", ""));
@@ -284,6 +529,8 @@ public class Grammar {
             }
         });
 
+        reorderProductionRules(newProductionRules);
+
         System.out.println("Production rules after removal of unit productions:");
         newProductionRules.forEach((key, value) -> {
             System.out.println(key + "->" + value);
@@ -297,80 +544,82 @@ public class Grammar {
         HashMap<String, String> productionRulesCopy = new HashMap<String, String>();
         productionRulesCopy.putAll(productionRules);
 
-        productionRulesCopy.forEach((key, value) -> {
-            String letter = key.replaceAll("[^a-zA-Z]", "");
-            int number = Integer.parseInt(key.replaceAll("[^0-9]", ""));
-            for (int k = 0; k < value.length(); k++) {
-                char c = value.charAt(k);
-                if (nonTerminalOccurences.containsKey(c + "1")) {
-                    StringBuilder count = new StringBuilder();
-                    int count2 = 0;
-                    for (int j = 0; j < value.length(); j++) {
-                        if (value.charAt(j) == c) {
-                            count2++;
-                            count.append(Integer.toString(count2));
-                        }
-                    }
-
-                    HashSet<String> set = new HashSet<>();
-                    getPartialPermutations(count.toString(), set);
-                    if (count.toString().length() > 1)
-                        set.remove(count.toString());
-                    String[] array = set.toArray(new String[set.size()]);
-
-                    for (int i = 0; i < array.length - 2; i++) {
-                        for (int j = i + 1; j < array.length; j++) {
-                            if (!array[i].contains(array[j]) && !array[j].contains(array[i])) {
-                                String newPermutation = array[i] + array[j];
-                                char[] charArray = newPermutation.toCharArray();
-                                Arrays.sort(charArray);
-                                String sortedNewPermutation = new String(charArray);
-                                set.add(sortedNewPermutation);
+        for (int q = 0; q < nonTerminalVariables.length; q++) {
+            productionRulesCopy.forEach((key, value) -> {
+                String letter = key.replaceAll("[^a-zA-Z]", "");
+                int number = Integer.parseInt(key.replaceAll("[^0-9]", ""));
+                for (int k = 0; k < value.length(); k++) {
+                    char c = value.charAt(k);
+                    if (nonTerminalOccurences.containsKey(c + "1")) {
+                        StringBuilder count = new StringBuilder();
+                        int count2 = 0;
+                        for (int j = 0; j < value.length(); j++) {
+                            if (value.charAt(j) == c) {
+                                count2++;
+                                count.append(Integer.toString(count2));
                             }
                         }
-                    }
 
-                    if (count.toString().length() > 1)
-                        set.remove(count.toString());
-                    set.add("0");
+                        HashSet<String> set = new HashSet<>();
+                        getPartialPermutations(count.toString(), set);
+                        if (count.toString().length() > 1)
+                            set.remove(count.toString());
+                        String[] array = set.toArray(new String[set.size()]);
 
-                    for (String element : set) {
-                        count.setLength(0);
-                        count2 = 0;
-                        for (int j = 0; j < value.length(); j++) {
-                            if (value.charAt(j) != c)
-                                count.append(value.charAt(j));
-                            else {
-                                count2++;
-                                if (element.contains(Integer.toString(count2))) {
-                                    count.append(value.charAt(j));
+                        for (int i = 0; i < array.length - 2; i++) {
+                            for (int j = i + 1; j < array.length; j++) {
+                                if (!array[i].contains(array[j]) && !array[j].contains(array[i])) {
+                                    String newPermutation = array[i] + array[j];
+                                    char[] charArray = newPermutation.toCharArray();
+                                    Arrays.sort(charArray);
+                                    String sortedNewPermutation = new String(charArray);
+                                    set.add(sortedNewPermutation);
                                 }
                             }
                         }
-                        // add count to new production rules
-                        String letter2 = letter + "1";
-                        final Boolean[] prodExists = { false };
-                        // check if production rule already exists
 
-                        newProductionRules.forEach((key3, value3) -> {
-                            String letter3 = key3.replaceAll("[^a-zA-Z]", "");
-                            int number3 = Integer.parseInt(key3.replaceAll("[^0-9]", ""));
-                            if (letter3.equals(letter) && value3.equals(count.toString()))
-                                prodExists[0] = true;
-                        });
-                        if (prodExists[0] != true && !count.toString().isEmpty()) {
-                            newProductionRules.put(
-                                    letter + Integer.toString(
-                                            nonTerminalOccurences.get(letter.charAt(0) == c ? letter2 : letter) + 1),
-                                    count.toString());
-                            nonTerminalOccurences.put(letter.charAt(0) == c ? letter2 : letter,
-                                    nonTerminalOccurences.get(letter.charAt(0) == c ? letter2 : letter) + 1);
+                        if (count.toString().length() > 1)
+                            set.remove(count.toString());
+                        set.add("0");
+
+                        for (String element : set) {
+                            count.setLength(0);
+                            count2 = 0;
+                            for (int j = 0; j < value.length(); j++) {
+                                if (value.charAt(j) != c)
+                                    count.append(value.charAt(j));
+                                else {
+                                    count2++;
+                                    if (element.contains(Integer.toString(count2))) {
+                                        count.append(value.charAt(j));
+                                    }
+                                }
+                            }
+
+                            String letter2 = letter + "1";
+                            final Boolean[] prodExists = { false };
+
+                            newProductionRules.forEach((key3, value3) -> {
+                                String letter3 = key3.replaceAll("[^a-zA-Z]", "");
+                                int number3 = Integer.parseInt(key3.replaceAll("[^0-9]", ""));
+                                if (letter3.equals(letter) && value3.equals(count.toString()))
+                                    prodExists[0] = true;
+                            });
+                            if (prodExists[0] != true && !count.toString().isEmpty()) {
+                                newProductionRules.put(
+                                        letter + Integer.toString(
+                                                nonTerminalOccurences.get(letter.charAt(0) == c ? letter2 : letter)
+                                                        + 1),
+                                        count.toString());
+                                nonTerminalOccurences.put(letter.charAt(0) == c ? letter2 : letter,
+                                        nonTerminalOccurences.get(letter.charAt(0) == c ? letter2 : letter) + 1);
+                            }
                         }
+                        break;
                     }
-                    break;
                 }
-            }
-        });
+            });
+        }
 
         HashMap<String, Integer> newNonTerminalOccurences = new HashMap<String, Integer>();
         newNonTerminalOccurences.putAll(nonTerminalOccurences);
@@ -384,6 +633,7 @@ public class Grammar {
 
         nonTerminalOccurences.clear();
         nonTerminalOccurences.putAll(newNonTerminalOccurences);
+        reorderProductionRules(newProductionRules);
 
         System.out.println("Production rules after removal of ε productions:");
         newProductionRules.forEach((key, value) -> {
