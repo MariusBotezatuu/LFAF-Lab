@@ -332,7 +332,7 @@ public class Grammar {
                 newValue = value.replaceAll("\\.\\d+", "");
 
                 if (Character.isUpperCase(newValue.charAt(0)) && Character.isUpperCase(newValue.charAt(1))
-                        && newValue.length() > 2) {
+                        && newValue.length() > 2 && Character.isUpperCase(newValue.charAt(2))) {
                     Boolean reachedFirstString = false;
                     Boolean reachedSecondString = false;
                     int end = 0;
@@ -379,6 +379,27 @@ public class Grammar {
                         else
                             value = "X." + xValue[0] + value.substring(end + 1);
                         xValue[0]++;
+                    }
+
+                }
+
+                newValue = value.replaceAll("\\.\\d+", "");
+
+                if (Character.isUpperCase(newValue.charAt(0)) && Character.isUpperCase(newValue.charAt(1))
+                        && newValue.length() > 2 && !Character.isUpperCase(newValue.charAt(2))) {
+                    int index = value.indexOf(newValue.charAt(2));
+                    if (newNonTerminals.containsValue(Character.toString(newValue.charAt(2)))) {
+                        for (Map.Entry<String, String> entry : newNonTerminals.entrySet()) {
+                            if (entry.getValue().equals(Character.toString(newValue.charAt(2)))) {
+                                key2 = entry.getKey();
+                                value = value.substring(0, index) + key2 + value.substring(index + 1);
+                                break;
+                            }
+                        }
+                    } else {
+                        newNonTerminals.put("Y." + yValue[0], Character.toString(newValue.charAt(2)));
+                        value = value.substring(0, index) + "Y." + yValue[0] + value.substring(index + 1);
+                        yValue[0]++;
                     }
 
                 }
