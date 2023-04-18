@@ -1,17 +1,22 @@
 package grammar;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 import automaton.FiniteAutomaton;
 import automaton.Transition;
 
+@FunctionalInterface
+interface originalGrammar {
+    HashMap<String, String> apply();
+}
+
 public class Grammar {
     private char[] nonTerminalVariables;
+    private String[] longerNonTerminalVariables;
     private char[] terminalVariables;
     private String word = "";
     private boolean type1 = true, type2 = true, type3 = true, left = false, right = false;
@@ -19,6 +24,13 @@ public class Grammar {
 
     public Grammar(char[] nonTerminalVariables, char[] terminalVariables, HashMap<String, String> productionRules) {
         this.nonTerminalVariables = nonTerminalVariables.clone();
+        this.terminalVariables = terminalVariables.clone();
+        this.productionRules.putAll(productionRules);
+    }
+
+    public Grammar(String[] longerNonTerminalVariables, char[] terminalVariables,
+            HashMap<String, String> productionRules) {
+        this.longerNonTerminalVariables = longerNonTerminalVariables.clone();
         this.terminalVariables = terminalVariables.clone();
         this.productionRules.putAll(productionRules);
     }
@@ -178,10 +190,32 @@ public class Grammar {
         productionRulesToOrder.putAll(productionRulesCopy);
     }
 
-    public void toChomskyNormalForm() {
+    private void updateNonTerminalArray(HashMap<String, String> newProductionRules) {
+        HashSet<String> nonTerminalSet = new HashSet<String>();
+
+        newProductionRules.forEach((key, value) -> {
+            String letter;
+            if (!key.contains("."))
+                letter = key.replaceAll("[^a-zA-Z]", "");
+            else
+                letter = key;
+            nonTerminalSet.add(letter);
+        });
+
+        longerNonTerminalVariables = nonTerminalSet.toArray(new String[0]);
+    }
+
+    private void applyChomskyNormalFormStep(originalGrammar step, HashMap<String, String> newProductionRules) {
+        HashMap<String, String> newProductionRulesCopy = new HashMap<String, String>();
+
+        newProductionRulesCopy.putAll(step.apply());
+        newProductionRules.clear();
+        newProductionRules.putAll(newProductionRulesCopy);
+    }
+
+    public Grammar toChomskyNormalForm() {
         HashMap<String, String> newProductionRules = new HashMap<String, String>();
         HashMap<String, Integer> nonTerminalOccurences = new HashMap<String, Integer>();
-        HashMap<String, String> newProductionRulesCopy = new HashMap<String, String>();
         newProductionRules.putAll(productionRules);
         productionRules.forEach((key, value) -> {
             String letter = key.replaceAll("[^a-zA-Z]", "");
@@ -196,31 +230,39 @@ public class Grammar {
             }
         });
 
-        newProductionRulesCopy.putAll(eliminateEpilsonProductions(newProductionRules, nonTerminalOccurences));
-        newProductionRules.clear();
-        newProductionRules.putAll(newProductionRulesCopy);
-        newProductionRulesCopy.clear();
+        originalGrammar f = () -> eliminateEpilsonProductions(newProductionRules, nonTerminalOccurences);
+        applyChomskyNormalFormStep(f, newProductionRules);
+        f = () -> eliminateUnitProductions(newProductionRules, nonTerminalOccurences);
+        applyChomskyNormalFormStep(f, newProductionRules);
+        f = () -> eliminateNonProductiveSymbols(newProductionRules, nonTerminalOccurences);
+        applyChomskyNormalFormStep(f, newProductionRules);
+        f = () -> eliminateInaccessibleSymbols(newProductionRules, nonTerminalOccurences);
+        applyChomskyNormalFormStep(f, newProductionRules);
+        f = () -> obtainChomskyNormalForm(newProductionRules);
+        applyChomskyNormalFormStep(f, newProductionRules);
+        updateNonTerminalArray(newProductionRules);
 
-        newProductionRulesCopy.putAll(eliminateUnitProductions(newProductionRules, nonTerminalOccurences));
-        newProductionRules.clear();
-        newProductionRules.putAll(newProductionRulesCopy);
-        newProductionRulesCopy.clear();
+        Grammar chomskyNormalFormGrammar = new Grammar(longerNonTerminalVariables, terminalVariables,
+                newProductionRules);
+        System.out.print("VN: {");
+        for (int i = 0; i < longerNonTerminalVariables.length; i++) {
+            if (i != longerNonTerminalVariables.length - 1)
+                System.out.print(longerNonTerminalVariables[i] + ",");
+            else
+                System.out.println(longerNonTerminalVariables[i] + "}");
+        }
+        System.out.print("VT: {");
+        for (int i = 0; i < terminalVariables.length; i++) {
+            if (i != terminalVariables.length - 1)
+                System.out.print(terminalVariables[i] + ",");
+            else
+                System.out.println(terminalVariables[i] + "}");
+        }
 
-        newProductionRulesCopy.putAll(eliminateNonProductiveSymbols(newProductionRules, nonTerminalOccurences));
-        newProductionRules.clear();
-        newProductionRules.putAll(newProductionRulesCopy);
-        newProductionRulesCopy.clear();
-
-        newProductionRulesCopy.putAll(eliminateInaccessibleSymbols(newProductionRules, nonTerminalOccurences));
-        newProductionRules.clear();
-        newProductionRules.putAll(newProductionRulesCopy);
-        newProductionRulesCopy.clear();
-
-        obtainChomskyNormalForm(newProductionRules);
-
+        return chomskyNormalFormGrammar;
     }
 
-    private void obtainChomskyNormalForm(HashMap<String, String> newProductionRules) {
+    private HashMap<String, String> obtainChomskyNormalForm(HashMap<String, String> newProductionRules) {
         int[] xValue = new int[1];
         int[] yValue = new int[1];
         HashMap<String, String> newNonTerminals = new HashMap<String, String>();
@@ -349,10 +391,12 @@ public class Grammar {
         newProductionRules.clear();
         newProductionRules.putAll(newProductionRulesCopy);
 
-        System.out.println("Chomsky Normal Form:");
+        System.out.println("Chomsky Normal Form Production Rules:");
         newProductionRules.forEach((key, value) -> {
             System.out.println(key + "->" + value);
         });
+
+        return newProductionRules;
 
     }
 

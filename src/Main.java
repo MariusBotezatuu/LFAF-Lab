@@ -206,14 +206,10 @@ public class Main {
         productionRules2.put("C1", "AB");
         productionRules2.put("D1", "BB");
 
-        // productionRules2.put("A1", "B");
-        // productionRules2.put("B1", "C");
-        // productionRules2.put("C1", "Ɛ");
-
         char[] nonTerminalVariables2 = { 'S', 'A', 'B', 'C', 'D' };
         char[] terminalVariables2 = { 'a', 'b' };
-        Grammar grammar3 = new Grammar(nonTerminalVariables2, terminalVariables2, productionRules2);
-        grammar3.toChomskyNormalForm();
+        Grammar variant2Grammar = new Grammar(nonTerminalVariables2, terminalVariables2, productionRules2);
+        Grammar chomskyNormalForm = variant2Grammar.toChomskyNormalForm();
 
     }
 
