@@ -8,6 +8,7 @@ public class Parser {
     private ArrayList<Token> tokens;
     private int currentTokenIndex;
     private Token currentToken;
+    public Node root;
 
     public Parser(ArrayList<Token> tokens) {
         this.tokens = tokens;
@@ -175,14 +176,14 @@ public class Parser {
     private void assignmentStatement() {
         match(TokenType.IDENTIFIER);
         match(TokenType.ASSIGN);
-        expression();
+        parseExpression();
         match(TokenType.SEMICOLON);
     }
 
     private void ifStatement() {
         match(TokenType.IF);
         match(TokenType.LEFT_PAREN);
-        expression();
+        parseExpression();
         match(TokenType.RIGHT_PAREN);
         statement();
 
@@ -195,7 +196,7 @@ public class Parser {
     private void whileStatement() {
         match(TokenType.WHILE);
         match(TokenType.LEFT_PAREN);
-        expression();
+        parseExpression();
         match(TokenType.RIGHT_PAREN);
         statement();
     }
@@ -204,40 +205,13 @@ public class Parser {
         match(TokenType.RETURN);
 
         if (currentToken.t != TokenType.SEMICOLON) {
-            expression();
+            parseExpression();
         }
 
         match(TokenType.SEMICOLON);
     }
 
-    private void expression() {
-        simpleExpression();
-
-        if (isRelationalOperator()) {
-            match(currentToken.t);
-            simpleExpression();
-        }
-    }
-
-    private void simpleExpression() {
-        term();
-
-        while (isAdditiveOperator()) {
-            match(currentToken.t);
-            term();
-        }
-    }
-
-    private void term() {
-        factor();
-
-        while (isMultiplicativeOperator()) {
-            match(currentToken.t);
-            factor();
-        }
-    }
-
-    private void factor() {
+    private void parseExpression() {
         if (currentToken.t == TokenType.IDENTIFIER) {
             match(TokenType.IDENTIFIER);
         } else if (currentToken.t == TokenType.INTEGER_LITERAL ||
@@ -245,10 +219,25 @@ public class Parser {
             match(currentToken.t);
         } else if (currentToken.t == TokenType.LEFT_PAREN) {
             match(TokenType.LEFT_PAREN);
-            expression();
+            parseExpression();
             match(TokenType.RIGHT_PAREN);
         } else {
             throw new RuntimeException("Syntax error: unexpected token " + currentToken.t);
+        }
+
+        while (isMultiplicativeOperator()) {
+            match(currentToken.t);
+            parseExpression();
+        }
+
+        while (isAdditiveOperator()) {
+            match(currentToken.t);
+            parseExpression();
+        }
+
+        if (isRelationalOperator()) {
+            match(currentToken.t);
+            parseExpression();
         }
     }
 
