@@ -2,6 +2,7 @@ import automaton.FiniteAutomaton;
 import grammar.Grammar;
 import automaton.Transition;
 import lexer.*;
+import parser.Parser;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -211,11 +212,16 @@ public class Main {
         Grammar variant2Grammar = new Grammar(nonTerminalVariables2, terminalVariables2, productionRules2);
         Grammar chomskyNormalForm = variant2Grammar.toChomskyNormalForm();
 
+        // things for lab 5
+
+        System.out.println("\nLab 5 Results");
+        Parser parser = new Parser(tokens);
+        parser.parse();
     }
 
     public static void sendToPython(String automata) throws IOException {
         ProcessBuilder pb = new ProcessBuilder("/usr/bin/python3",
-                "src/python/graphbuilder.py");
+                "src/graphbuilder/graphbuilder.py");
         Process process = pb.start();
 
         // Get the output and error streams of the Python process

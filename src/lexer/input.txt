@@ -3,16 +3,25 @@ class Lamp {
   // stores the value for light
   // true if light is on
   // false if light is off
-  boolean isOn;
+  public boolean isOn;
 
   // method to turn on the light
-  void turnOn() {
+  void turnOn(int i1, boolean c) {
     isOn = true;
+    if (isOn == false)
+      int i;
+    i = 5+2;
+  
 
   }
 
   // method to turnoff the light
-  void turnOff() {
+  int turnOff() {
     isOn = false;
-  }
+    int j;
+    j=0;
+    while (i == 0)
+      j=j+1;
+  return (j*10+1);
 }
+

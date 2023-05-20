@@ -1,6 +1,6 @@
 package lexer;
 
-enum TokenType {
+public enum TokenType {
     // Java separators
     LEFT_PAREN, RIGHT_PAREN, LEFT_BRACKET, RIGHT_BRACKET, LEFT_BRACE, RIGHT_BRACE, SEMICOLON, COMMA, DOT, QUOTE,
     // Java keywords
