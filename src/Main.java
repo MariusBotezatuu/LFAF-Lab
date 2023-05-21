@@ -215,8 +215,10 @@ public class Main {
         // things for lab 5
 
         System.out.println("\nLab 5 Results");
+        System.out.println("AST: ");
         Parser parser = new Parser(tokens);
         parser.parse();
+        parser.showAST();
     }
 
     public static void sendToPython(String automata) throws IOException {

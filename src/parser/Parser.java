@@ -8,12 +8,13 @@ public class Parser {
     private ArrayList<Token> tokens;
     private int currentTokenIndex;
     private Token currentToken;
-    public Node root;
+    public NodeAST root;
 
     public Parser(ArrayList<Token> tokens) {
         this.tokens = tokens;
         this.currentTokenIndex = 0;
         this.currentToken = tokens.get(0);
+        root = new NodeAST("Program");
     }
 
     private void advance() {
@@ -21,6 +22,9 @@ public class Parser {
         if (currentTokenIndex < tokens.size()) {
             currentToken = tokens.get(currentTokenIndex);
         }
+        if (currentTokenIndex > tokens.size())
+            throw new RuntimeException("Syntax error: missing token " + currentToken.t);
+
     }
 
     private void match(TokenType expectedType) {
@@ -46,12 +50,14 @@ public class Parser {
 
     private void compilationUnit() {
         while (currentTokenIndex < tokens.size()) {
-            classDeclaration();
+            root.addChild(classDeclaration());
         }
     }
 
-    private void classDeclaration() {
+    private NodeAST classDeclaration() {
+        NodeAST classNode;
         match(TokenType.CLASS);
+        classNode = new NodeAST("ClassDeclaration", currentToken.c);
         match(TokenType.IDENTIFIER);
         match(TokenType.LEFT_BRACE);
 
@@ -60,185 +66,245 @@ public class Parser {
             if (currentToken.t == TokenType.PUBLIC ||
                     currentToken.t == TokenType.PRIVATE ||
                     currentToken.t == TokenType.STATIC) {
-                fieldDeclaration();
+                classNode.addChild(fieldDeclaration());
             } else if (currentToken.t == TokenType.INT || currentToken.t == TokenType.STRING
                     || currentToken.t == TokenType.BOOLEAN
                     || currentToken.t == TokenType.FLOAT ||
                     currentToken.t == TokenType.CHAR || currentToken.t == TokenType.VOID) {
-                methodDeclaration();
+                classNode.addChild(methodDeclaration());
             } else {
                 throw new RuntimeException("Syntax error: unexpected token " + currentToken.t);
             }
         }
-
         match(TokenType.RIGHT_BRACE);
+        return classNode;
     }
 
-    private void fieldDeclaration() {
-        accessModifier();
-        staticModifier();
-        fieldType();
+    private NodeAST fieldDeclaration() {
+        NodeAST fieldNode = new NodeAST("FieldDeclaration");
+        NodeAST child = accessModifier();
+        if (child.type != null)
+            fieldNode.addChild(child);
+        child = staticModifier();
+        if (child.type != null)
+            fieldNode.addChild(child);
+        fieldNode.addChild(fieldType());
+        fieldNode.addValue(currentToken.c);
         match(TokenType.IDENTIFIER);
         match(TokenType.SEMICOLON);
+        return fieldNode;
     }
 
-    private void methodFieldDeclaration() {
-        fieldType();
+    private NodeAST methodFieldDeclaration() {
+        NodeAST methodFieldDeclarationNode = new NodeAST("MethodFieldDeclaration");
+        methodFieldDeclarationNode.addChild(fieldType());
+        methodFieldDeclarationNode.addValue(currentToken.c);
         match(TokenType.IDENTIFIER);
         match(TokenType.SEMICOLON);
+        return methodFieldDeclarationNode;
     }
 
-    private void fieldType() {
+    private NodeAST fieldType() {
+        NodeAST fieldTypeNode;
         if (currentToken.t == TokenType.INT || currentToken.t == TokenType.STRING || currentToken.t == TokenType.BOOLEAN
                 || currentToken.t == TokenType.FLOAT ||
                 currentToken.t == TokenType.CHAR) {
+            fieldTypeNode = new NodeAST("FieldType", currentToken.c);
             match(currentToken.t);
         } else {
             throw new RuntimeException("Syntax error: unexpected token " + currentToken.t);
         }
+        return fieldTypeNode;
     }
 
-    private void accessModifier() {
+    private NodeAST accessModifier() {
+        NodeAST accessModifierNode;
         if (currentToken.t == TokenType.PUBLIC ||
                 currentToken.t == TokenType.PRIVATE) {
+            accessModifierNode = new NodeAST("AccessModifier", currentToken.c);
             match(currentToken.t);
-        }
+        } else
+            accessModifierNode = new NodeAST();
+        return accessModifierNode;
     }
 
-    private void staticModifier() {
+    private NodeAST staticModifier() {
+        NodeAST staticModifierNode;
         if (currentToken.t == TokenType.STATIC) {
+            staticModifierNode = new NodeAST("StaticModifier", currentToken.c);
             match(TokenType.STATIC);
-        }
+        } else
+            staticModifierNode = new NodeAST();
+        return staticModifierNode;
     }
 
-    private void methodDeclaration() {
+    private NodeAST methodDeclaration() {
+        NodeAST methodDeclarationNode;
         match(currentToken.t);
+        methodDeclarationNode = new NodeAST("MethodDeclaration", currentToken.c);
         match(TokenType.IDENTIFIER);
         match(TokenType.LEFT_PAREN);
 
         if (currentToken.t != TokenType.RIGHT_PAREN) {
-            parameters();
+            methodDeclarationNode.addChild(parameters());
         }
 
         match(TokenType.RIGHT_PAREN);
-        methodBody();
+        methodDeclarationNode.addChild(methodBody());
+        return methodDeclarationNode;
     }
 
-    private void parameters() {
-        parameter();
+    private NodeAST parameters() {
+        NodeAST parametersNode = new NodeAST("Parameters");
+        parametersNode.addChild(parameter());
 
         while (currentToken.t == TokenType.COMMA) {
             match(TokenType.COMMA);
-            parameter();
+            parametersNode.addChild(parameter());
         }
+        return parametersNode;
     }
 
-    private void parameter() {
+    private NodeAST parameter() {
+        NodeAST parameterNode;
         if (currentToken.t == TokenType.INT || currentToken.t == TokenType.STRING
                 || currentToken.t == TokenType.BOOLEAN
                 || currentToken.t == TokenType.FLOAT ||
-                currentToken.t == TokenType.CHAR)
+                currentToken.t == TokenType.CHAR) {
+            parameterNode = new NodeAST("Parameter", currentToken.c);
             match(currentToken.t);
-        else
+        } else
             throw new RuntimeException("Syntax error: unexpected token " + currentToken.t);
+        NodeAST parameterNodeIdentifier = new NodeAST(currentToken.c);
+        parameterNode.addChild(parameterNodeIdentifier);
         match(TokenType.IDENTIFIER);
+        return parameterNode;
     }
 
-    private void methodBody() {
+    private NodeAST methodBody() {
+        NodeAST methodBodyNode = new NodeAST("MethodBody");
         match(TokenType.LEFT_BRACE);
 
         while (currentToken.t != TokenType.RIGHT_BRACE) {
-            statement();
+            methodBodyNode.addChild(statement());
         }
 
         match(TokenType.RIGHT_BRACE);
+        return methodBodyNode;
     }
 
-    private void statement() {
+    private NodeAST statement() {
+        NodeAST statementNode = new NodeAST("Statement");
         if (currentToken.t == TokenType.IDENTIFIER) {
-            assignmentStatement();
+            statementNode.addChild(assignmentStatement());
         } else if (currentToken.t == TokenType.INT || currentToken.t == TokenType.STRING
                 || currentToken.t == TokenType.BOOLEAN
                 || currentToken.t == TokenType.FLOAT ||
                 currentToken.t == TokenType.CHAR) {
-            methodFieldDeclaration();
+            statementNode.addChild(methodFieldDeclaration());
         } else if (currentToken.t == TokenType.IF) {
-            ifStatement();
+            statementNode.addChild(ifStatement());
         } else if (currentToken.t == TokenType.WHILE) {
-            whileStatement();
+            statementNode.addChild(whileStatement());
         } else if (currentToken.t == TokenType.RETURN) {
-            returnStatement();
+            statementNode.addChild(returnStatement());
         } else {
             throw new RuntimeException("Syntax error: unexpected token " + currentToken.t);
         }
+        return statementNode;
     }
 
-    private void assignmentStatement() {
+    private NodeAST assignmentStatement() {
+        NodeAST assignmentStatementNode = new NodeAST("AssignmentStatement", currentToken.c + "=");
         match(TokenType.IDENTIFIER);
         match(TokenType.ASSIGN);
-        parseExpression();
+        assignmentStatementNode.addChild(parseExpression());
         match(TokenType.SEMICOLON);
+        return assignmentStatementNode;
     }
 
-    private void ifStatement() {
+    private NodeAST ifStatement() {
+        NodeAST ifNode = new NodeAST("IfStatement");
         match(TokenType.IF);
         match(TokenType.LEFT_PAREN);
-        parseExpression();
+        ifNode.addChild(parseExpression());
         match(TokenType.RIGHT_PAREN);
-        statement();
+        ifNode.addChild(statement());
 
         if (currentToken.t == TokenType.ELSE) {
-            match(TokenType.ELSE);
-            statement();
+            ifNode.addChild(elseStatement());
         }
+        return ifNode;
     }
 
-    private void whileStatement() {
+    private NodeAST elseStatement() {
+        NodeAST elseStatementNode = new NodeAST("ElseStatement");
+        match(TokenType.ELSE);
+        elseStatementNode.addChild(statement());
+        return elseStatementNode;
+    }
+
+    private NodeAST whileStatement() {
+        NodeAST whileStatementNode = new NodeAST("WhileStatement");
         match(TokenType.WHILE);
         match(TokenType.LEFT_PAREN);
-        parseExpression();
+        whileStatementNode.addChild(parseExpression());
         match(TokenType.RIGHT_PAREN);
-        statement();
+        whileStatementNode.addChild(statement());
+        return whileStatementNode;
     }
 
-    private void returnStatement() {
+    private NodeAST returnStatement() {
+        NodeAST returnStatementNode = new NodeAST("ReturnStatement");
         match(TokenType.RETURN);
 
         if (currentToken.t != TokenType.SEMICOLON) {
-            parseExpression();
+            returnStatementNode.addChild(parseExpression());
         }
 
         match(TokenType.SEMICOLON);
+        return returnStatementNode;
     }
 
-    private void parseExpression() {
+    private NodeAST parseExpression() {
+        NodeAST parseExpressionNode;
         if (currentToken.t == TokenType.IDENTIFIER) {
+            parseExpressionNode = new NodeAST("Expression", currentToken.c);
             match(TokenType.IDENTIFIER);
         } else if (currentToken.t == TokenType.INTEGER_LITERAL ||
                 currentToken.t == TokenType.BOOLEAN_LITERAL) {
+            parseExpressionNode = new NodeAST("Expression", currentToken.c);
             match(currentToken.t);
         } else if (currentToken.t == TokenType.LEFT_PAREN) {
             match(TokenType.LEFT_PAREN);
-            parseExpression();
+            parseExpressionNode = new NodeAST("Expression");
+            parseExpressionNode.addChild(parseExpression());
             match(TokenType.RIGHT_PAREN);
         } else {
             throw new RuntimeException("Syntax error: unexpected token " + currentToken.t);
         }
 
         while (isMultiplicativeOperator()) {
+            NodeAST multiplicativeOperationNode = new NodeAST("Operator", currentToken.c);
+            parseExpressionNode.addChild(multiplicativeOperationNode);
             match(currentToken.t);
-            parseExpression();
+            parseExpressionNode.addChild(parseExpression());
         }
 
         while (isAdditiveOperator()) {
+            NodeAST AdditiveOperationNode = new NodeAST("Operator", currentToken.c);
+            parseExpressionNode.addChild(AdditiveOperationNode);
             match(currentToken.t);
-            parseExpression();
+            parseExpressionNode.addChild(parseExpression());
         }
 
         if (isRelationalOperator()) {
+            NodeAST relationalOperationNode = new NodeAST("Operator", currentToken.c);
+            parseExpressionNode.addChild(relationalOperationNode);
             match(currentToken.t);
-            parseExpression();
+            parseExpressionNode.addChild(parseExpression());
         }
+        return parseExpressionNode;
     }
 
     private boolean isRelationalOperator() {
@@ -254,5 +320,41 @@ public class Parser {
     private boolean isMultiplicativeOperator() {
         TokenType type = currentToken.t;
         return type == TokenType.TIMES || type == TokenType.DIVIDE;
+    }
+
+    private void showASTChildren(NodeAST n, int i) {
+        for (NodeAST c : n.children) {
+            if (!c.type.equals("Statement") && !(c.type.equals("Expression") && c.value == null)) {
+                for (int j = 0; j < i; j++)
+                    System.out.print("  ");
+                System.out.println(c.type);
+                if (c.value != null) {
+                    for (int j = 0; j < i; j++)
+                        System.out.print("  ");
+                    System.out.println(c.value);
+                }
+            }
+            if (c.children.size() > 0) {
+                int i1 = i + 1;
+                showASTChildren(c, i1);
+
+            }
+        }
+    }
+
+    public void showAST() {
+        System.out.println(root.type);
+        for (NodeAST n : root.children) {
+            if (!n.type.equals("Statement") && !(n.type.equals("Expression") && n.value == null)) {
+                System.out.print("  ");
+                System.out.println(n.type);
+                if (n.value != null) {
+                    System.out.print("  ");
+                    System.out.println(n.value);
+                }
+            }
+            if (n.children.size() > 0)
+                showASTChildren(n, 2);
+        }
     }
 }
